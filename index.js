@@ -5,19 +5,17 @@ const { joinVoiceChannel } = require('@discordjs/voice');
 const client = new Client();
 
 // --- الإعدادات ---
-const GUILD_ID = '1264561928034975775';       // ايدي السيرفر
-const AFK_CHANNEL_ID = '1496674424693325844'; // ايدي روم الـ AFK الصوتي
+const GUILD_ID = '1264561928034975775';       // آيدي السيرفر
+const AFK_CHANNEL_ID = '1496674424693325844'; // آيدي روم الـ AFK الصوتي
 
-client.on('ready', async () => {
-    console.log(`✅ تم تسجيل الدخول بنجاح كـ: ${client.user.tag}`);
-    
+// دالة للانضمام إلى الروم الصوتي
+const connectToVoice = () => {
     const guild = client.guilds.cache.get(GUILD_ID);
     if (!guild) {
         console.error("❌ لم يتم العثور على السيرفر، يرجى التأكد من صحة GUILD_ID");
         return;
     }
 
-    // الانضمام إلى الروم الصوتي (Muted/Deafened تلقائياً)
     try {
         joinVoiceChannel({
             channelId: AFK_CHANNEL_ID,
@@ -29,6 +27,26 @@ client.on('ready', async () => {
         console.log(`🔊 تم الدخول إلى روم الـ AFK بنجاح.`);
     } catch (error) {
         console.error("❌ حدث خطأ أثناء الدخول للروم الصوتي:", error);
+    }
+};
+
+client.on('ready', async () => {
+    console.log(`✅ تم تسجيل الدخول بنجاح كـ: ${client.user.tag}`);
+    connectToVoice();
+});
+
+// ميزة الإعادة التلقائية عند الخروج أو التجميع/السحب
+client.on('voiceStateUpdate', (oldState, newState) => {
+    // التأكد أن الإجراء يخص حسابك أنت فقط
+    if (oldState.id !== client.user.id) return;
+
+    // إذا تم إخراجك من الروم أو نقلك إلى روم آخر غير روم الـ AFK
+    if (newState.channelId !== AFK_CHANNEL_ID) {
+        console.log("⚠️ تم رصد تغيير في الروم الصوتي (خروج أو نقل). إرجاع الحساب بعد 3 ثوانٍ...");
+        
+        setTimeout(() => {
+            connectToVoice();
+        }, 3000); // 3000 ملي ثانية = 3 ثوانٍ
     }
 });
 
