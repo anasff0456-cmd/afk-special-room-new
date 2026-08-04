@@ -7,7 +7,6 @@ const client = new Client();
 // --- الإعدادات ---
 const GUILD_ID = '1264561928034975775';       // آيدي السيرفر
 const AFK_CHANNEL_ID = '1496674424693325844'; // آيدي روم الـ AFK الصوتي
-const TEXT_CHANNEL_ID = '1497214787493433545';// آيدي الروم الكتابي
 
 // دالة للانضمام إلى الروم الصوتي
 const connectToVoice = () => {
@@ -31,35 +30,11 @@ const connectToVoice = () => {
     }
 };
 
-// دالة إرسال الرسائل الكتابية
-const sendTextMessage = (content) => {
-    const channel = client.channels.cache.get(TEXT_CHANNEL_ID);
-    if (channel) {
-        channel.send(content)
-            .then(() => console.log(`✉️ تم إرسال الرسالة: "${content}"`))
-            .catch((err) => console.error(`❌ فشل إرسال الرسالة "${content}":`, err));
-    } else {
-        console.error("❌ لم يتم العثور على الروم الكتابي.");
-    }
-};
-
 client.on('ready', async () => {
     console.log(`✅ تم تسجيل الدخول بنجاح كـ: ${client.user.tag}`);
     
     // الدخول للروم الصوتي عند التشغيل
     connectToVoice();
-
-    // إرسال كلمة "متجر" فور التشغيل ثم تكرارها كل دقيقتين (120,000 ملي ثانية)
-    sendTextMessage("متجر");
-    setInterval(() => {
-        sendTextMessage("متجر");
-    }, 120000);
-
-    // إرسال كلمة "بخشيش" فور التشغيل ثم تكرارها كل 15 دقيقة (900,000 ملي ثانية)
-    sendTextMessage("بخشيش");
-    setInterval(() => {
-        sendTextMessage("بخشيش");
-    }, 900000);
 });
 
 // ميزة الإعادة التلقائية عند الخروج أو التجميع/السحب
