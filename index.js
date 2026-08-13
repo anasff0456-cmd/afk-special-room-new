@@ -3,7 +3,7 @@ const { Client } = require('discord.js-selfbot-v13');
 
 const client = new Client();
 
-// --- المتغيرات ---
+// --- المتغيرات من ريلواي ---
 const token = process.env.token || process.env.TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 const AFK_CHANNEL_ID = process.env.AFK_CHANNEL_ID;
@@ -16,16 +16,17 @@ if (!token) {
     console.error("❌ [CRITICAL ERROR]: متغير الـ token غير موجود في ريلواي!");
 }
 
-// --- دالة التأفيك والدخول الصوتي الذكي ---
+// --- دالة التأفيك والدخول الصوتي الصحيحة ---
 const connectToVoiceChannel = async () => {
     try {
         const guild = client.guilds.cache.get(GUILD_ID);
-        if (!guild) return;
-        
-        const channel = guild.channels.cache.get(AFK_CHANNEL_ID);
-        if (channel && channel.type === 'GUILD_STAGE_VOICE' || channel.type === 'GUILD_VOICE') {
-            // استخدام الاتصال الداخلي المباشر للبسلف بوت لتجنب أخطاء حزم النظام
-            await client.ws.send({
+        if (!guild) {
+            console.log("⚠️ [AFK]: لم يتم العثور على السيرفر، جاري إعادة المحاولة...");
+            return;
+        }
+
+        if (AFK_CHANNEL_ID) {
+            await guild.shard.send({
                 op: 4,
                 d: {
                     guild_id: GUILD_ID,
@@ -34,7 +35,7 @@ const connectToVoiceChannel = async () => {
                     self_deaf: false
                 }
             });
-            console.log("🔊 [AFK SUCCESS]: تم التأفيك والدخول إلى الروم الصوتي بنجاح.");
+            console.log(`🔊 [AFK SUCCESS]: تم التأفيك بنجاح في الروم الصوتي مع ميوت.`);
         }
     } catch (error) {
         console.error("❌ [AFK ERROR]: حدث خطأ أثناء محاولة التأفيك الصوتي:", error);
@@ -43,14 +44,20 @@ const connectToVoiceChannel = async () => {
 
 client.on('ready', async () => {
     console.log(`✅ [LOGIN SUCCESS]: تم تسجيل الدخول بنجاح كـ: ${client.user.tag}`);
-    
-    setTimeout(() => {
-        connectToVoiceChannel();
-        startSmartRotation();
-    }, 5000);
+    setTimeout(connectToVoiceChannel, 5000);
+    startSmartRotation();
 });
 
-// --- نظام التناوب الذكي (كل 3 ثواني رسالة) ---
+// --- إعادة الدخول تلقائياً لو تم سحبك أو طردك من الروم ---
+client.on('voiceStateUpdate', (oldState, newState) => {
+    if (oldState.id !== client.user.id) return;
+    if (oldState.channelId && !newState.channelId) {
+        console.log("⚠️ [AFK NOTICE]: تم إخراجك من روم التأفيك! جاري العودة خلال ثانيتين...");
+        setTimeout(connectToVoiceChannel, 2000);
+    }
+});
+
+// --- نظام التناوب الذكي للرومات والرسائل ---
 const startSmartRotation = async () => {
     let economyTimer = 0;
     let tasbeehTimer = 0;
@@ -63,7 +70,7 @@ const startSmartRotation = async () => {
             const guild = client.guilds.cache.get(GUILD_ID);
             if (!guild) return;
 
-            // 1. روم التسبيح الرئيسي (كل 62 ثانية)
+            // 1. روم التسبيح الرئيسي (أذكار منوعة مع رقم تسلسلي كل 62 ثانية)
             if (Date.now() - tasbeehTimer > 62000) {
                 if (TASBEEH_CHANNEL_ID) {
                     const channel = guild.channels.cache.get(TASBEEH_CHANNEL_ID);
@@ -74,8 +81,22 @@ const startSmartRotation = async () => {
                             const match = m.content.match(/\d+/);
                             if (match) lastNum = Math.max(lastNum, parseInt(match[0]));
                         });
-                        await channel.send(`استغفر الله ${lastNum + 1}`);
-                        console.log(`📿 [TASBEEH]: تم إرسال التسبيح برقم ${lastNum + 1}`);
+
+                        // قائمة أذكار متنوعة لتتغير الكلمة في كل مرة مع الرقم
+                        const adkarList = [
+                            'استغفر الله',
+                            'سبحان الله',
+                            'الحمد لله',
+                            'لا إله إلا الله',
+                            'الله أكبر',
+                            'لا حول ولا قوة إلا بالله',
+                            'سبحان الله وبحمده',
+                            'سبحان الله العظيم'
+                        ];
+                        const randomZikr = adkarList[Math.floor(Math.random() * adkarList.length)];
+                        
+                        await channel.send(`${randomZikr} ${lastNum + 1}`);
+                        console.log(`📿 [TASBEEH]: تم إرسال (${randomZikr} ${lastNum + 1})`);
                     }
                 }
                 tasbeehTimer = Date.now();
@@ -87,7 +108,7 @@ const startSmartRotation = async () => {
                 if (TASBEEH_RANDOM_CHANNEL_ID) {
                     const channel = guild.channels.cache.get(TASBEEH_RANDOM_CHANNEL_ID);
                     if (channel) {
-                        const azkar = ['سبحان الله', 'الحمد لله', 'الله أكبر', 'لا إله إلا الله'];
+                        const azkar = ['سبحان الله', 'الحمد لله', 'الله أكبر', 'لا إله إلا الله', 'استغفر الله'];
                         const randomZikr = azkar[Math.floor(Math.random() * azkar.length)];
                         await channel.send(randomZikr);
                         console.log(`✨ [RANDOM TASBEEH]: تم إرسال (${randomZikr})`);
@@ -122,7 +143,7 @@ const startSmartRotation = async () => {
         } catch (error) {
             console.error("❌ [ROTATION ERROR]: حدث خطأ داخل حلقة الإرسال والتناوب:", error);
         }
-    }, 3000); // القاعدة الأساسية: حركة كل 3 ثواني
+    }, 3000);
 };
 
 process.on('unhandledRejection', error => {
