@@ -16,14 +16,11 @@ if (!token) {
     console.error("❌ [CRITICAL ERROR]: متغير الـ token غير موجود في ريلواي!");
 }
 
-// --- دالة التأفيك والدخول الصوتي الصحيحة ---
+// --- دالة التأفيك والدخول الصوتي ---
 const connectToVoiceChannel = async () => {
     try {
         const guild = client.guilds.cache.get(GUILD_ID);
-        if (!guild) {
-            console.log("⚠️ [AFK]: لم يتم العثور على السيرفر، جاري إعادة المحاولة...");
-            return;
-        }
+        if (!guild) return;
 
         if (AFK_CHANNEL_ID) {
             await guild.shard.send({
@@ -48,7 +45,7 @@ client.on('ready', async () => {
     startSmartRotation();
 });
 
-// --- إعادة الدخول تلقائياً لو تم سحبك أو طردك من الروم ---
+// --- إعادة الدخول تلقائياً لو تم سحبك من روم التأفيك ---
 client.on('voiceStateUpdate', (oldState, newState) => {
     if (oldState.id !== client.user.id) return;
     if (oldState.channelId && !newState.channelId) {
@@ -57,7 +54,7 @@ client.on('voiceStateUpdate', (oldState, newState) => {
     }
 });
 
-// --- نظام التناوب الذكي للرومات والرسائل ---
+// --- نظام التناوب الذكي والدقة في قراءة أرقام التسبيح ---
 const startSmartRotation = async () => {
     let economyTimer = 0;
     let tasbeehTimer = 0;
@@ -70,19 +67,24 @@ const startSmartRotation = async () => {
             const guild = client.guilds.cache.get(GUILD_ID);
             if (!guild) return;
 
-            // 1. روم التسبيح الرئيسي (أذكار منوعة مع رقم تسلسلي كل 62 ثانية)
+            // 1. روم التسبيح الرئيسي (قراءة الرقم الأخير بدقة وزيادة 1 عليه مع ذكر منوع كل 62 ثانية)
             if (Date.now() - tasbeehTimer > 62000) {
                 if (TASBEEH_CHANNEL_ID) {
                     const channel = guild.channels.cache.get(TASBEEH_CHANNEL_ID);
                     if (channel) {
-                        const msgs = await channel.messages.fetch({ limit: 5 });
+                        const msgs = await channel.messages.fetch({ limit: 10 });
                         let lastNum = 0;
-                        msgs.forEach(m => {
-                            const match = m.content.match(/\d+/);
-                            if (match) lastNum = Math.max(lastNum, parseInt(match[0]));
-                        });
+                        
+                        // البحث عن آخر رسالة تحتوي على ذكر ورقم صحيح مرسل من البوتات أو المستخدمين
+                        for (const msg of msgs.values()) {
+                            const parts = msg.content.trim().split(/\s+/);
+                            const possibleNum = parseInt(parts[parts.length - 1]);
+                            if (!isNaN(possibleNum)) {
+                                lastNum = possibleNum;
+                                break; // وجدنا أحدث رقم صحيح، نكتفي به
+                            }
+                        }
 
-                        // قائمة أذكار متنوعة لتتغير الكلمة في كل مرة مع الرقم
                         const adkarList = [
                             'استغفر الله',
                             'سبحان الله',
@@ -94,9 +96,10 @@ const startSmartRotation = async () => {
                             'سبحان الله العظيم'
                         ];
                         const randomZikr = adkarList[Math.floor(Math.random() * adkarList.length)];
-                        
-                        await channel.send(`${randomZikr} ${lastNum + 1}`);
-                        console.log(`📿 [TASBEEH]: تم إرسال (${randomZikr} ${lastNum + 1})`);
+                        const nextNum = lastNum + 1;
+
+                        await channel.send(`${randomZikr} ${nextNum}`);
+                        console.log(`📿 [TASBEEH]: تم إرسال (${randomZikr} ${nextNum})`);
                     }
                 }
                 tasbeehTimer = Date.now();
